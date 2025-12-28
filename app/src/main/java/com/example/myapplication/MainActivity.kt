@@ -80,13 +80,16 @@ class MainActivity : ComponentActivity() {
                 Scaffold { innerPadding ->
                     if (isCameraOpen) {
                         // Real-time camera scan
-                        CameraScreen(onExitDetected = { exitText ->
-                            // 1️⃣ If Im blind add that it should take voice input for user and for eveyrhting
-                            // If blind, announce result
-                            if (abilityProfile == AbilityProfile.BLIND) {
-                                accessibilityManager.speak("Found $exitText")
+                        CameraScreen(
+                            profile = abilityProfile,
+                            onExitDetected = { exitText ->
+                                // 1️⃣ If Im blind add that it should take voice input for user and for eveyrhting
+                                // If blind, announce result
+                                if (abilityProfile == AbilityProfile.BLIND) {
+                                    accessibilityManager.speak("Found $exitText")
+                                }
                             }
-                        })
+                        )
                         // Back button handling logic would go here in a full nav graph
                     } else {
                         SenseSafeApp(

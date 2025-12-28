@@ -1,6 +1,7 @@
 package com.example.myapplication.viewmodel
 
 import android.app.Application
+import android.location.Location
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.BackoffPolicy
@@ -17,6 +18,7 @@ import com.example.myapplication.data.UserRepository
 import com.example.myapplication.data.UserStatus
 import com.example.myapplication.utils.DeviceUtils
 import com.example.myapplication.utils.LocationHelper
+import com.example.myapplication.utils.OfflineManager
 import com.example.myapplication.workers.RescueWorker
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +42,13 @@ class SafetyViewModel(application: Application) : AndroidViewModel(application) 
     // UI State for Disaster Alert
     private val _isDisasterActive = MutableStateFlow(false)
     val isDisasterActive: StateFlow<Boolean> = _isDisasterActive
+    
+    // Last Known Location
+    val lastKnownLocation = MutableStateFlow<Location?>(null)
+
+    // Offline Status
+    private val _isOffline = MutableStateFlow(false)
+    val isOffline: StateFlow<Boolean> = _isOffline
 
     // Save profile
     fun setAbilityProfile(profile: AbilityProfile) {
@@ -58,6 +67,7 @@ class SafetyViewModel(application: Application) : AndroidViewModel(application) 
     fun sendRescueSignal(status: UserStatus) {
         viewModelScope.launch {
             val location = locationHelper.getCurrentLocation()
+            lastKnownLocation.value = location
             val battery = DeviceUtils.getBatteryLevel(getApplication())
             
             val payload = DisasterPayload(
@@ -68,17 +78,25 @@ class SafetyViewModel(application: Application) : AndroidViewModel(application) 
                 lng = location?.longitude ?: 0.0,
                 battery = battery
             )
+            
+            val isOnline = OfflineManager.isOnline(getApplication())
+            _isOffline.value = !isOnline
 
-            // 1. Try sending immediately via Retrofit (Best effort)
-            launch {
-                try {
-                    val response = RetrofitClient.instance.sendAlert(payload)
-                    if (!response.isSuccessful) {
+            if (isOnline) {
+                // 1. Try sending immediately via Retrofit
+                launch {
+                    try {
+                        val response = RetrofitClient.instance.sendAlert(payload)
+                        if (!response.isSuccessful) {
+                            enqueueRescueWorker(payload)
+                        }
+                    } catch (e: Exception) {
                         enqueueRescueWorker(payload)
                     }
-                } catch (e: Exception) {
-                    enqueueRescueWorker(payload)
                 }
+            } else {
+                // OFFLINE-FIRST: Cache immediately
+                enqueueRescueWorker(payload)
             }
         }
     }
@@ -91,7 +109,7 @@ class SafetyViewModel(application: Application) : AndroidViewModel(application) 
         AlertManager.cancelAlert(getApplication())
     }
 
-    // 1️⃣ & 5️⃣ WorkManager for retries: Enqueue worker if direct network fails
+    // 1️⃣ & 5️⃣ WorkManager for retries: Enqueue worker if direct network fails or Offline
     private fun enqueueRescueWorker(payload: DisasterPayload) {
         val payloadJson = Gson().toJson(payload)
         val data = Data.Builder()
