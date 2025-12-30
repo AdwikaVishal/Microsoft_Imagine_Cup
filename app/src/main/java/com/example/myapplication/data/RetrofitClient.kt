@@ -8,7 +8,7 @@ import retrofit2.converter.gson.GsonConverterFactory
  * Singleton Retrofit Client.
  */
 object RetrofitClient {
-    private const val BASE_URL = "https://api.sensesafe.com/" // Placeholder URL
+    private const val BASE_URL = "https://api.sensesafe.com/"
 
     val instance: RescueService by lazy {
         Retrofit.Builder()

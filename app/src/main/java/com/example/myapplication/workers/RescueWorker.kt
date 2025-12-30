@@ -18,17 +18,11 @@ class RescueWorker(
 
     override suspend fun doWork(): Result {
         val payloadJson = inputData.getString(KEY_PAYLOAD) ?: return Result.failure()
-        
+
         return try {
             val payload = Gson().fromJson(payloadJson, DisasterPayload::class.java)
-            val response = RetrofitClient.instance.sendAlert(payload)
-            
-            if (response.isSuccessful) {
-                Result.success()
-            } else {
-                // Server error, retry
-                Result.retry()
-            }
+            RetrofitClient.instance.sendSOS(payload.sos)
+            Result.success()
         } catch (e: Exception) {
             // Network error, retry
             Result.retry()

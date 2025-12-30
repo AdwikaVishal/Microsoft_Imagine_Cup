@@ -3,7 +3,7 @@ package com.example.myapplication.data
 /**
  * Represents the user's current status during a disaster.
  */
-data class DisasterPayload(
+data class DisasterStatus(
     val userId: String,
     val ability: String,
     val status: String,
@@ -13,6 +13,7 @@ data class DisasterPayload(
 )
 
 enum class UserStatus(val description: String) {
+    NONE(""),
     SAFE("I'm safe"),
     TRAPPED("I'm trapped"),
     INJURED("I'm injured"),
