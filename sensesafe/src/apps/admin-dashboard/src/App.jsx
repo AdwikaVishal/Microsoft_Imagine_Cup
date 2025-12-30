@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
 import SystemHealthStrip from './components/SystemHealthStrip';
 import Dashboard from './pages/Dashboard';
 import Alerts from './pages/Alerts';
 import AlertDetail from './pages/AlertDetail';
 import Login from './pages/Login';
-import { mockAlerts as initialAlerts } from '../../mock/data.js';
+import Users from './pages/Users';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
+import { mockAlerts as initialAlerts } from './data/mockAlerts.js';
 
 function App() {
     const [alerts, setAlerts] = useState(initialAlerts);
     const [newAlertId, setNewAlertId] = useState(null);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(true);
 
     // Fake Live Update Logic
     useEffect(() => {
@@ -70,16 +73,21 @@ function App() {
 
     return (
         <Router>
-            <div className="flex flex-col w-full min-h-screen">
-                <SystemHealthStrip />
-                <Navbar />
-                <main className="main-content">
-                    <Routes>
-                        <Route path="/" element={<Dashboard alerts={alerts} newAlertId={newAlertId} />} />
-                        <Route path="/alerts" element={<Alerts alerts={alerts} newAlertId={newAlertId} />} />
-                        <Route path="/alerts/:id" element={<AlertDetail alerts={alerts} />} />
-                    </Routes>
-                </main>
+            <div className="flex w-full min-h-screen bg-gray-100">
+                <Sidebar />
+                <div className="flex-1 flex flex-col">
+                    {/* <SystemHealthStrip /> */}
+                    <main className="flex-1 p-6">
+                        <Routes>
+                            <Route path="/" element={<Dashboard alerts={alerts} newAlertId={newAlertId} />} />
+                            <Route path="/alerts" element={<Alerts alerts={alerts} newAlertId={newAlertId} />} />
+                            <Route path="/alerts/:id" element={<AlertDetail alerts={alerts} />} />
+                            <Route path="/users" element={<Users />} />
+                            <Route path="/analytics" element={<Analytics />} />
+                            <Route path="/settings" element={<Settings />} />
+                        </Routes>
+                    </main>
+                </div>
             </div>
         </Router>
     );

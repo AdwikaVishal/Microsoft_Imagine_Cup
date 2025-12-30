@@ -1,7 +1,6 @@
 // Mock API services for SenseSafe frontend
 // These will be replaced with real Azure services in production
 
-import axios from 'axios';
 import { mockData } from '../mock/data.js';
 
 // Simulate network delays
