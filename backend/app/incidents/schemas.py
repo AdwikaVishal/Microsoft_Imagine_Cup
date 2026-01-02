@@ -41,3 +41,10 @@ class IncidentListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class IncidentUpdate(BaseModel):
+    """Schema for updating an incident."""
+    status: Optional[str] = None
+    risk_score: Optional[float] = None
+    risk_level: Optional[str] = None

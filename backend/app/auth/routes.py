@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.core.security import get_current_user
 from app.db.models import User
 from app.auth.schemas import UserRegister, UserLogin, AuthResponse, UserResponse
-from app.auth.service import register_user, login_user, get_current_user_info
+from app.auth.service import register_user, login_user, get_current_user_info, logout_user
 
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -28,7 +28,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(credentials: UserLogin, db: Session = Depends(get_db)):
+def login(credentials: UserLogin, request: Request, db: Session = Depends(get_db)):
     """
     Login with email and password.
     
@@ -37,7 +37,8 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     
     Returns JWT token and user information.
     """
-    return login_user(db, credentials)
+    client_host = request.client.host if request.client else None
+    return login_user(db, credentials, ip_address=client_host)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -48,3 +49,16 @@ def get_me(current_user: User = Depends(get_current_user)):
     Requires valid JWT token in Authorization header.
     """
     return get_current_user_info(current_user)
+
+
+@router.post("/logout")
+def logout(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Logout current user.
+    
+    Logs the logout event for audit purposes.
+    Note: JWT tokens are stateless, so this doesn't invalidate the token.
+    """
+    client_host = request.client.host if request.client else None
+    return logout_user(db, current_user, ip_address=client_host)
+

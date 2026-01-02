@@ -1,11 +1,10 @@
-from pydantic import BaseModel, Field
+from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
 from app.db.models import SOSStatus, UserAbility
+from pydantic import BaseModel, Field
 
-
-# Request Schemas
 class SOSCreate(BaseModel):
     """Schema for creating a new SOS alert."""
     ability: UserAbility
@@ -15,18 +14,16 @@ class SOSCreate(BaseModel):
     status: SOSStatus
 
 
-# Response Schemas
 class SOSResponse(BaseModel):
-    """Schema for SOS alert response."""
     id: UUID
-    user_id: UUID
+    user_id: Optional[UUID] = None
     ability: UserAbility
     lat: float
     lng: float
     battery: int
     status: SOSStatus
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 

@@ -28,6 +28,8 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+from datetime import datetime
+
 class UserResponse(BaseModel):
     """Schema for user data response."""
     id: UUID
@@ -35,6 +37,7 @@ class UserResponse(BaseModel):
     email: str
     role: UserRole
     ability: UserAbility
+    created_at: datetime
     
     class Config:
         from_attributes = True
@@ -45,3 +48,10 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+class UserListResponse(BaseModel):
+    """Schema for list of users."""
+    users: list[UserResponse]
+    total: int
+    page: int
+    page_size: int

@@ -49,7 +49,9 @@ class UserRole(str, enum.Enum):
 
 class UserAbility(str, enum.Enum):
     BLIND = "BLIND"
+    LOW_VISION = "LOW_VISION"
     DEAF = "DEAF"
+    HARD_OF_HEARING = "HARD_OF_HEARING"
     NON_VERBAL = "NON_VERBAL"
     ELDERLY = "ELDERLY"
     OTHER = "OTHER"
@@ -76,6 +78,13 @@ class AlertSeverity(str, enum.Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+
+
+class AlertType(str, enum.Enum):
+    GENERAL = "GENERAL"
+    INCIDENT = "INCIDENT"
+    WEATHER = "WEATHER"
+    EMERGENCY = "EMERGENCY"
 
 
 class User(Base):
@@ -115,7 +124,7 @@ class SOS(Base):
     __tablename__ = "sos"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     ability = Column(Enum(UserAbility), nullable=False)
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
@@ -133,6 +142,7 @@ class Alert(Base):
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     severity = Column(Enum(AlertSeverity), nullable=False)
+    alert_type = Column(Enum(AlertType), default=AlertType.GENERAL, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -146,7 +156,7 @@ class Message(Base):
     __tablename__ = "messages"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # Nullable for anonymous SOS
     message_type = Column(Enum(MessageType), nullable=False)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
@@ -163,6 +173,48 @@ class Message(Base):
 
 
 User.messages = relationship("Message", back_populates="user", cascade="all, delete-orphan")
+
+
+# -------------------------------
+# AUDIT LOGGING
+# -------------------------------
+
+class AuditAction(str, enum.Enum):
+    """Types of admin actions that can be logged."""
+    VIEW_INCIDENTS = "VIEW_INCIDENTS"
+    VIEW_ALERTS = "VIEW_ALERTS"
+    VERIFY_INCIDENT = "VERIFY_INCIDENT"
+    RESOLVE_INCIDENT = "RESOLVE_INCIDENT"
+    UPDATE_INCIDENT = "UPDATE_INCIDENT"
+    CREATE_ALERT = "CREATE_ALERT"
+    DELETE_ALERT = "DELETE_ALERT"
+    LOGIN = "LOGIN"
+    LOGOUT = "LOGOUT"
+    FAILED_LOGIN = "FAILED_LOGIN"
+
+
+class AuditLog(Base):
+    """
+    Audit log for tracking all admin actions.
+    
+    This provides a complete audit trail of who did what and when.
+    """
+    __tablename__ = "audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    admin_email = Column(String(255), nullable=False)
+    action = Column(Enum(AuditAction), nullable=False)
+    resource_type = Column(String(100), nullable=False)
+    resource_id = Column(UUID(as_uuid=True), nullable=True)
+    details = Column(Text, nullable=True)  # JSON string for additional details
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    success = Column(Integer, default=1, nullable=False)  # 1 = success, 0 = failed
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    admin = relationship("User", backref="audit_logs")
 
 
 # -------------------------------

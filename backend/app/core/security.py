@@ -12,7 +12,7 @@ from app.db.database import get_db
 from app.db.models import User, UserRole
 
 
-# Password hashing (force bcrypt "2b" backend to avoid macOS issues)
+# Password hashing
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
@@ -20,50 +20,43 @@ pwd_context = CryptContext(
     bcrypt__ident="2b"
 )
 
-# JWT Bearer token
-security = HTTPBearer()
+security = HTTPBearer(auto_error=True)
+optional_security = HTTPBearer(auto_error=False)   # <-- NEW
 
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
     return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token."""
     to_encode = data.copy()
 
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+    expire = (
+        datetime.utcnow() + expires_delta
+        if expires_delta
+        else datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
 
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
+
+    return jwt.encode(
         to_encode,
         settings.JWT_SECRET,
         algorithm=settings.JWT_ALGORITHM,
     )
 
-    return encoded_jwt
-
 
 def decode_access_token(token: str) -> dict:
-    """Decode and validate a JWT token."""
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token,
             settings.JWT_SECRET,
             algorithms=[settings.JWT_ALGORITHM],
         )
-        return payload
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -76,10 +69,9 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
-    """Get the current authenticated user from JWT token."""
     token = credentials.credentials
-    
-    # Handle demo token for testing
+
+    # Demo token
     if token == "demo_token_for_testing_only":
         user = db.query(User).filter(User.email == "admin@sensesafe.com").first()
         if user:
@@ -88,15 +80,14 @@ async def get_current_user(
     payload = decode_access_token(token)
 
     user_id: str = payload.get("sub")
-    if user_id is None:
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
 
     user = db.query(User).filter(User.id == user_id).first()
-
-    if user is None:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -105,8 +96,24 @@ async def get_current_user(
     return user
 
 
+async def optional_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """
+    Try to authenticate if token exists.
+    If no token or invalid token -> return None (NO ERROR).
+    """
+    if not credentials:
+        return None
+
+    try:
+        return await get_current_user(credentials, db)
+    except Exception:
+        return None
+
+
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Require the current user to be an admin."""
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -116,5 +123,4 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 async def require_user(current_user: User = Depends(get_current_user)) -> User:
-    """Require the current user to be authenticated (any role)."""
     return current_user
