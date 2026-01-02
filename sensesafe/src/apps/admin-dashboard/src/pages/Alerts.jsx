@@ -75,22 +75,22 @@ function Alerts({ alerts: initialAlerts, newAlertId }) {
     try {
       console.log('🔄 Refreshing alerts...');
       
-      // Use the combined fetch function that gets data from /api/sos/user and /api/incidents/user
       const data = await getAllAlertsForAdmin();
       
-      // Convert to alert format
-      const messagesList = data.messages || [];
+      const messagesList = Array.isArray(data?.messages) ? data.messages : [];
+      
+      // Convert to alert format - handle cases where fields might be missing
       const combinedAlerts = messagesList.map(msg => ({
-        id: msg.id,
+        id: msg.id || 'unknown',
         userName: msg.user_name || 'Unknown User',
         alertType: msg.message_type === 'SOS' ? 'SOS Alert' : msg.message_type === 'INCIDENT' ? 'Incident' : 'Message',
         userCategory: msg.ability || msg.category || 'Normal',
         isVulnerable: msg.ability && msg.ability !== 'NONE',
-        timestamp: msg.created_at,
+        timestamp: msg.created_at || new Date().toISOString(),
         status: msg.is_read ? 'Resolved' : 'Active',
-        description: msg.content || msg.title,
+        description: msg.content || msg.title || 'No description',
         riskScore: msg.severity === 'critical' ? 95 : msg.severity === 'high' ? 75 : msg.severity === 'medium' ? 50 : 25,
-        location: msg.lat && msg.lng ? `${msg.lat.toFixed(4)}, ${msg.lng.toFixed(4)}` : null,
+        location: msg.lat && msg.lng ? `${Number(msg.lat).toFixed(4)}, ${Number(msg.lng).toFixed(4)}` : null,
         category: msg.category,
         severity: msg.severity,
         ability: msg.ability,
@@ -101,6 +101,8 @@ function Alerts({ alerts: initialAlerts, newAlertId }) {
       console.log(`✅ Refreshed ${combinedAlerts.length} alerts`);
     } catch (error) {
       console.error('Error refreshing alerts:', error);
+      // Set empty array on error to prevent crash
+      setAlerts([]);
     } finally {
       setIsLoading(false);
     }

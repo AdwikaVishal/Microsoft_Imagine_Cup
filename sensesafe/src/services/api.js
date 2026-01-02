@@ -8,7 +8,7 @@ import axios from 'axios';
 // Use relative URLs when running behind Vite proxy
 // The proxy in vite.admin.config.js forwards /api/* to http://10.82.205.229:8000
 const apiClient = axios.create({
-  baseURL: '',  // Use relative URLs - proxy handles the rest
+  baseURL: 'http://10.28.84.165:8000',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -36,10 +36,8 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Simulate network delays (for development without backend)
 const delay = (ms = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Error simulation for testing (disabled when real backend is available)
 const simulateError = (probability = 0) => {
   if (Math.random() < probability) {
     throw new Error('Network error occurred');
@@ -307,7 +305,11 @@ export const getAlerts = async (params = {}) => {
 /**
  * Get all alerts for admin dashboard (combines SOS, incidents from their native endpoints)
  * This ensures data sent from Android app via /api/sos and /api/incidents is visible
- * @returns {Promise<Object>} Object containing all alerts { sosAlerts, incidents, stats }
+ * @returns {Promise<Object>} Object containing all alerts { messages, sos_alerts, incidents, stats }
+ * 
+ * Backend Response Format:
+ * - GET /api/sos/user: { sos_alerts: [{ id, user_id, ability, lat, lng, battery, status, created_at }] }
+ * - GET /api/incidents/user: { incidents: [{ id, user_id, type, description, lat, lng, status, image_url, risk_score, risk_level, created_at }] }
  */
 export const getAllAlertsForAdmin = async () => {
   try {
@@ -316,53 +318,74 @@ export const getAllAlertsForAdmin = async () => {
     // Fetch from multiple sources in parallel
     const [sosResponse, incidentsResponse, messagesResponse] = await Promise.allSettled([
       // Try getting SOS from native endpoint
-      apiClient.get('/api/sos/user').catch(() => ({ data: { sos_alerts: [] } })),
+      apiClient.get('/api/sos/user').catch(e => {
+        console.warn('SOS endpoint error:', e.message);
+        return { data: { sos_alerts: [] } };
+      }),
       // Get incidents from native endpoint (where Android app sends data)
-      apiClient.get('/api/incidents/user').catch(() => ({ data: { incidents: [] } })),
+      apiClient.get('/api/incidents/user').catch(e => {
+        console.warn('Incidents endpoint error:', e.message);
+        return { data: { incidents: [] } };
+      }),
       // Also try messages endpoint as backup
       apiClient.get('/api/messages/admin/all', { 
         params: { page_size: 100 } 
-      }).catch(() => ({ data: { messages: [] } }))
+      }).catch(e => {
+        console.warn('Messages endpoint error:', e.message);
+        return { data: { messages: [] } };
+      })
     ]);
 
-    const sosAlerts = sosResponse.value?.data?.sos_alerts || [];
-    const incidents = incidentsResponse.value?.data?.incidents || [];
-    const messages = messagesResponse.value?.data?.messages || [];
+    // Extract data with defensive checks - handle cases where data might be undefined
+    const sosData = sosResponse.value?.data || {};
+    const incidentsData = incidentsResponse.value?.data || {};
+    const messagesData = messagesResponse.value?.data || {};
+
+    const sosAlerts = Array.isArray(sosData.sos_alerts) ? sosData.sos_alerts : [];
+    const incidents = Array.isArray(incidentsData.incidents) ? incidentsData.incidents : [];
+    const messages = Array.isArray(messagesData.messages) ? messagesData.messages : [];
 
     console.log(`📊 Raw data - SOS: ${sosAlerts.length}, Incidents: ${incidents.length}, Messages: ${messages.length}`);
 
     // Convert SOS alerts to unified format
+    // Backend format: { id, user_id, ability, lat, lng, battery, status, created_at }
     const formattedSOS = sosAlerts.map(sos => ({
-      id: sos.id,
+      id: sos.id || `sos-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       message_type: 'SOS',
-      user_name: sos.user_name || 'Unknown User',
-      title: sos.title || 'SOS Alert',
-      content: sos.content || 'Emergency SOS alert',
+      user_name: 'Unknown User', // Backend doesn't include user relationship
+      user_id: sos.user_id || null,
+      title: sos.title || `SOS Alert (${sos.ability || 'Unknown'})`,
+      content: sos.content || `Emergency SOS from ${sos.ability || 'user'} - Status: ${sos.status || 'NEED_HELP'}`,
       ability: sos.ability || 'NONE',
-      battery: sos.battery,
-      lat: sos.lat,
-      lng: sos.lng,
+      battery: sos.battery || null,
+      lat: sos.lat || null,
+      lng: sos.lng || null,
       severity: 'critical',
       is_read: false,
       created_at: sos.created_at || new Date().toISOString(),
-      status: sos.status
+      status: sos.status || 'NEED_HELP'
     }));
 
     // Convert incidents to unified format (key for Android-sent data)
+    // Backend format: { id, user_id, type, description, lat, lng, status, image_url, risk_score, risk_level, created_at }
     const formattedIncidents = incidents.map(inc => ({
-      id: inc.id,
+      id: inc.id || `inc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       message_type: 'INCIDENT',
-      user_name: inc.reporter_name || 'Unknown User',
-      title: inc.title,
-      content: inc.description || inc.content,
-      category: inc.category,
-      severity: inc.severity || 'medium',
-      lat: inc.lat,
-      lng: inc.lng,
+      user_name: 'Unknown User', // Backend doesn't include user relationship
+      user_id: inc.user_id || null,
+      title: inc.title || `Incident: ${inc.type || 'Unknown'}`,
+      content: inc.description || inc.content || 'No description provided',
+      category: inc.type || 'general', // Map 'type' to 'category'
+      description: inc.description || inc.content,
+      severity: inc.risk_level?.toLowerCase() || inc.severity || 'medium',
+      risk_score: inc.risk_score || null,
+      risk_level: inc.risk_level || null,
+      lat: inc.lat || null,
+      lng: inc.lng || null,
       is_read: false,
       created_at: inc.created_at || new Date().toISOString(),
-      status: inc.status,
-      image_url: inc.image_url
+      status: inc.status || 'PENDING',
+      image_url: inc.image_url || null
     }));
 
     // Use messages if available, otherwise use formatted native data
@@ -374,7 +397,7 @@ export const getAllAlertsForAdmin = async () => {
       allMessages = [...formattedSOS, ...formattedIncidents];
     }
 
-    // Calculate stats
+    // Calculate stats with defensive checks
     const stats = {
       total: allMessages.length,
       unread: allMessages.filter(m => !m.is_read).length,
@@ -397,7 +420,13 @@ export const getAllAlertsForAdmin = async () => {
     };
   } catch (error) {
     console.error('Error fetching all alerts for admin:', error);
-    throw error;
+    // Return empty data structure instead of throwing - prevents crash
+    return {
+      messages: [],
+      sos_alerts: [],
+      incidents: [],
+      stats: { total: 0, unread: 0, sos_count: 0, incident_count: 0, by_type: { SOS: 0, INCIDENT: 0, GENERAL: 0 } }
+    };
   }
 };
 

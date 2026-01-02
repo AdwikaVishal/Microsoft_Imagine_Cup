@@ -46,22 +46,26 @@ function Messages() {
 
       const data = await getAllAlertsForAdmin();
 
-      // ALWAYS use fallback
+      // ALWAYS use fallback - handle cases where data might be undefined
       const messagesList = Array.isArray(data?.messages) ? data.messages : [];
+      const statsData = data?.stats || {};
 
       console.log(`📨 Received ${messagesList.length} messages`);
 
       setMessages(messagesList);
 
       setStats({
-        total: data?.stats?.total || messagesList.length,
-        unread: data?.stats?.unread || messagesList.filter(m => !m.is_read).length,
-        sos_count: data?.stats?.by_type?.SOS || messagesList.filter(m => m.message_type === 'SOS').length,
-        incident_count: data?.stats?.by_type?.INCIDENT || messagesList.filter(m => m.message_type === 'INCIDENT').length
+        total: statsData.total || messagesList.length,
+        unread: statsData.unread || messagesList.filter(m => !m.is_read).length,
+        sos_count: statsData.by_type?.SOS || messagesList.filter(m => m.message_type === 'SOS').length,
+        incident_count: statsData.by_type?.INCIDENT || messagesList.filter(m => m.message_type === 'INCIDENT').length
       });
 
     } catch (err) {
       console.error('❌ Error fetching messages:', err);
+      // Set empty data on error to prevent crash
+      setMessages([]);
+      setStats({ total: 0, unread: 0, sos_count: 0, incident_count: 0 });
     } finally {
       setIsLoading(false);
     }

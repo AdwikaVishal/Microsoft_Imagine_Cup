@@ -41,7 +41,12 @@ def get_user_incidents(db: Session, user: User, page: int = 1, page_size: int = 
     offset = (page - 1) * page_size
     
     # Query incidents
-    query = db.query(Incident).filter(Incident.user_id == user.id)
+    # If no user provided (testing / admin mode) return ALL incidents
+    if user is None:
+        query = db.query(Incident)
+    else:
+        query = db.query(Incident).filter(Incident.user_id == user.id)
+
     total = query.count()
     incidents = query.order_by(Incident.created_at.desc()).offset(offset).limit(page_size).all()
     

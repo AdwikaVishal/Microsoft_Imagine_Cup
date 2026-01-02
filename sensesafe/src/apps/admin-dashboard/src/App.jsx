@@ -34,21 +34,24 @@ function App() {
       // Fetch from combined endpoint (fetches from /api/sos/user, /api/incidents/user, and /api/messages/admin/all)
       const data = await getAllAlertsForAdmin();
       
-      const messagesList = data.messages || [];
+      // Safely extract messages array with defensive check
+      const messagesList = Array.isArray(data?.messages) ? data.messages : [];
+      const statsData = data?.stats || {};
+
       setMessages(messagesList);
 
-      // Convert messages to alerts format for Dashboard/Alerts pages
+      // Convert messages to alerts format for Dashboard/Alerts pages - handle missing fields
       const alertsList = messagesList.map(msg => ({
-        id: msg.id,
+        id: msg.id || `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         userName: msg.user_name || 'Unknown User',
         alertType: msg.message_type === 'SOS' ? 'SOS Alert' : msg.message_type === 'INCIDENT' ? 'Incident' : 'Message',
         userCategory: msg.ability || msg.category || 'Normal',
         isVulnerable: msg.ability && msg.ability !== 'NONE',
-        timestamp: msg.created_at,
+        timestamp: msg.created_at || new Date().toISOString(),
         status: msg.is_read ? 'Resolved' : 'Active',
-        description: msg.content || msg.title,
+        description: msg.content || msg.title || 'No description',
         riskScore: msg.severity === 'critical' ? 95 : msg.severity === 'high' ? 75 : msg.severity === 'medium' ? 50 : 25,
-        location: msg.lat && msg.lng ? `${msg.lat.toFixed(4)}, ${msg.lng.toFixed(4)}` : null,
+        location: msg.lat && msg.lng ? `${Number(msg.lat).toFixed(4)}, ${Number(msg.lng).toFixed(4)}` : null,
         category: msg.category,
         severity: msg.severity,
         ability: msg.ability,
@@ -58,11 +61,11 @@ function App() {
       setAlerts(alertsList);
       console.log(`✅ Loaded ${alertsList.length} alerts from backend`);
 
-      // Use stats from combined data
+      // Use stats from combined data with defensive checks
       setStats({
-        total: data.stats.total || alertsList.length,
-        unread: data.stats.unread || alertsList.filter(m => !m.is_read).length,
-        by_type: data.stats.by_type || {
+        total: statsData.total || alertsList.length,
+        unread: statsData.unread || alertsList.filter(m => !m.is_read).length,
+        by_type: statsData.by_type || {
           SOS: alertsList.filter(m => m.alertType === 'SOS Alert').length,
           INCIDENT: alertsList.filter(m => m.alertType === 'Incident').length,
           GENERAL: alertsList.filter(m => m.alertType === 'Message').length,
@@ -71,7 +74,10 @@ function App() {
 
     } catch (error) {
       console.error('❌ Error fetching data from backend:', error);
-      // Keep using empty data if backend is not available
+      // Set empty data on error to prevent crash
+      setMessages([]);
+      setAlerts([]);
+      setStats({ total: 0, unread: 0, by_type: { SOS: 0, INCIDENT: 0, GENERAL: 0 } });
     } finally {
       setIsLoading(false);
     }
