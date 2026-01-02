@@ -2,8 +2,9 @@ package com.example.myapplication.model
 
 import java.util.Date
 
+// Main SOS data class used by ViewModels
 data class SOS(
-    val userId: String,
+    val userId: String?,
     val latitude: Double,
     val longitude: Double,
     val timestamp: Date,
@@ -12,9 +13,19 @@ data class SOS(
     val abilityType: AbilityType
 )
 
+// Request sent to API (backend format)
+data class SOSRequest(
+    val ability: String,
+    val lat: Double,
+    val lng: Double,
+    val battery: Int,
+    val status: String
+)
+
+// MUST match backend enums exactly
 enum class SOSStatus {
-    IM_TRAPPED,
-    IM_INJURED,
-    I_NEED_HELP,
-    IM_SAFE
+    TRAPPED,
+    INJURED,
+    NEED_HELP,
+    SAFE
 }

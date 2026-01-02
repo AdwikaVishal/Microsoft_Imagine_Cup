@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Users, CheckCircle, Clock } from 'lucide-react';
+import { IncidentMap } from '../components/IncidentMap';
+import { getSOSStats, getAllAlertsForAdmin } from "../services/api";
 
 function Dashboard({ alerts, newAlertId }) {
     const [stats, setStats] = useState({
@@ -9,15 +11,31 @@ function Dashboard({ alerts, newAlertId }) {
         highRiskUsers: 0,
         resolved: 0
     });
+    const [sosStats, setSosStats] = useState({ active_sos: 0 });
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Fetch real SOS stats from backend
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const sosData = await getSOSStats();
+                setSosStats({ active_sos: sosData.active_sos || 0 });
+            } catch (error) {
+                console.error('Error fetching SOS stats:', error);
+            }
+        };
+        fetchStats();
+    }, []);
 
     useEffect(() => {
         // Calculate stats from alerts
-        const totalIncidents = alerts.length;
-        const activeSOS = alerts.filter(a => a.status === 'Active').length;
+        const totalIncidents = alerts.filter(a => a.alertType === 'Incident').length;
+        const activeSOS = alerts.filter(a => a.alertType === 'SOS Alert' && a.status !== 'Resolved').length;
         const highRiskUsers = alerts.filter(a => a.isVulnerable && a.status !== 'Resolved').length;
         const resolved = alerts.filter(a => a.status === 'Resolved').length;
 
         setStats({ totalIncidents, activeSOS, highRiskUsers, resolved });
+        setIsLoading(false);
     }, [alerts]);
 
     return (
@@ -40,7 +58,9 @@ function Dashboard({ alerts, newAlertId }) {
                         <Users className="h-8 w-8 text-orange-500" />
                         <div className="ml-4">
                             <p className="text-sm font-medium text-gray-600">Active SOS</p>
-                            <p className="text-2xl font-bold text-gray-900">{stats.activeSOS}</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                {isLoading ? '...' : (sosStats.active_sos || stats.activeSOS)}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -64,14 +84,10 @@ function Dashboard({ alerts, newAlertId }) {
                 </div>
             </div>
 
-            {/* Live Map Placeholder */}
-            <div className="bg-white p-6 rounded-lg shadow mb-8">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Live Map</h2>
-                <div className="h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-500">Map Placeholder</p>
-                    {/* TODO: INSERT AZURE MAPS SDK HERE */}
-                    {/* TODO: Add API key and map initialization */}
-                </div>
+            {/* Live Map */}
+            <div className="mb-8">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Live Incident Map</h2>
+                <IncidentMap isAdmin={true} />
             </div>
 
             {/* SOS List Table */}
@@ -93,21 +109,20 @@ function Dashboard({ alerts, newAlertId }) {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {alerts.slice(0, 5).map((alert) => (
+                            {alerts.filter(a => a.alertType === 'SOS Alert').slice(0, 5).map((alert) => (
                                 <tr key={alert.id} className={newAlertId === alert.id ? 'bg-yellow-50' : ''}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{alert.userName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{alert.userCategory}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {/* TODO: PLACEHOLDER: AI RISK API (Azure ML) */}
-                                        {Math.floor(Math.random() * 100)}
+                                        {alert.riskScore || Math.floor(Math.random() * 100)}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{Math.floor(Math.random() * 100)}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{alert.battery || 0}%</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                            alert.status === 'Active' ? 'bg-red-100 text-red-800' :
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${alert.status === 'Active' ? 'bg-red-100 text-red-800' :
                                             alert.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-green-100 text-green-800'
-                                        }`}>
+                                                'bg-green-100 text-green-800'
+                                            }`}>
                                             {alert.status}
                                         </span>
                                     </td>
@@ -136,31 +151,28 @@ function Dashboard({ alerts, newAlertId }) {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {alerts.slice(0, 5).map((alert) => (
+                            {alerts.filter(a => a.alertType === 'Incident').slice(0, 5).map((alert) => (
                                 <tr key={alert.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{alert.alertType}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{alert.description.length > 30 ? alert.description.substring(0, 30) + '...' : alert.description}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                            alert.alertType === 'SOS' ? 'bg-red-100 text-red-800' :
-                                            alert.alertType === 'Injured' ? 'bg-orange-100 text-orange-800' :
-                                            'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                            {alert.alertType === 'SOS' ? 'High' : alert.alertType === 'Injured' ? 'Medium' : 'Low'}
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${alert.severity === 'critical' || alert.severity === 'high' ? 'bg-red-100 text-red-800' :
+                                            alert.severity === 'medium' ? 'bg-orange-100 text-orange-800' :
+                                                'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                            {alert.severity || 'Medium'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{alert.userName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                            alert.status === 'Active' ? 'bg-red-100 text-red-800' :
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${alert.status === 'Active' ? 'bg-red-100 text-red-800' :
                                             alert.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-green-100 text-green-800'
-                                        }`}>
+                                                'bg-green-100 text-green-800'
+                                            }`}>
                                             {alert.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <button className="text-indigo-600 hover:text-indigo-900 mr-2">Verify</button>
-                                        <button className="text-green-600 hover:text-green-900">Resolve</button>
+                                        <Link to={`/alerts/${alert.id}`} className="text-indigo-600 hover:text-indigo-900 mr-2">View</Link>
                                     </td>
                                 </tr>
                             ))}

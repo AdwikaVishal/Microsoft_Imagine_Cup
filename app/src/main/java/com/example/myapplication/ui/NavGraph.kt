@@ -17,6 +17,7 @@ import com.example.myapplication.model.AbilityType
 import com.example.myapplication.model.Alert
 import com.example.myapplication.ui.screens.CameraScreen
 import com.example.myapplication.ui.screens.VoiceCommandScreen
+import com.example.myapplication.model.SOSStatus
 import com.example.myapplication.viewmodel.AlertViewModel
 import com.example.myapplication.viewmodel.IncidentViewModel
 import com.example.myapplication.viewmodel.SOSViewModel
@@ -102,9 +103,16 @@ fun NavGraph(
             VoiceCommandScreen(
                 accessibilityManager = accessibilityManager,
                 onNavigateBack = { navController.popBackStack() },
-                onProcessWithAzure = { command ->
-                    navController.previousBackStackEntry?.savedStateHandle?.set("voiceCommandResult", command)
-                    navController.popBackStack()
+                onNavigateToScan = { navController.navigate("camera") },
+                onTriggerSOS = { status ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set("sosStatus", status.name)
+                    navController.navigate("sos")
+                },
+                onShowAlerts = { navController.navigate("alert") },
+                onNavigateToHome = { navController.navigate("main") },
+                onReportIncident = { description ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set("voiceIncidentDescription", description)
+                    navController.navigate("report_incident")
                 }
             )
         }

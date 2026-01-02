@@ -20,6 +20,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.accessibility.AccessibilityManager
 import com.example.myapplication.utils.LocationHelper
 import com.example.myapplication.viewmodel.IncidentViewModel
@@ -39,6 +41,9 @@ fun ReportIncidentScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val locationHelper = remember { LocationHelper(context) }
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val savedStateHandle = navBackStackEntry?.savedStateHandle
 
     // State from ViewModel
     val selectedCategory by viewModel.selectedCategory.collectAsState()
@@ -53,6 +58,16 @@ fun ReportIncidentScreen(
     // Location permission
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
+    // Check for voice incident description
+    LaunchedEffect(Unit) {
+        @Suppress("UNCHECKED_CAST")
+        val voiceDescription = savedStateHandle?.get<String>("voiceIncidentDescription") as? String
+        if (!voiceDescription.isNullOrEmpty() && description.isEmpty()) {
+            viewModel.updateDescription(voiceDescription)
+            accessibilityManager?.speak("Incident description from voice: $voiceDescription")
+        }
+    }
+
     // Update error message based on report state
     LaunchedEffect(reportState) {
         if (reportState is ReportIncidentState.Error) {
@@ -65,6 +80,8 @@ fun ReportIncidentScreen(
     LaunchedEffect(reportState) {
         if (reportState is ReportIncidentState.Success) {
             accessibilityManager?.speak("Incident reported successfully")
+            // Clear the saved state
+            savedStateHandle?.remove<String>("voiceIncidentDescription")
         }
     }
 

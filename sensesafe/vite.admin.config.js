@@ -11,17 +11,17 @@ export default defineConfig({
     port: 3001,
     proxy: {
       '/api': {
-        target: 'http://10.82.205.229:8000',
+        target: 'http://10.211.52.92:8000',
         changeOrigin: true,
         secure: false,
       },
       '/auth': {
-        target: 'http://10.82.205.229:8000',
+        target: 'http://10.211.52.92:8000',
         changeOrigin: true,
         secure: false,
       },
       '/health': {
-        target: 'http://10.82.205.229:8000',
+        target: 'http://10.211.52.92:8000',
         changeOrigin: true,
         secure: false,
       }

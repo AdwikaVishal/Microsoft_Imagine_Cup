@@ -5,11 +5,13 @@ import Dashboard from './pages/Dashboard';
 import Alerts from './pages/Alerts';
 import AlertDetail from './pages/AlertDetail';
 import Messages from './pages/Messages';
+import AdminActions from './pages/AdminActions';
 import Login from './pages/Login';
 import Users from './pages/Users';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
-import { getAllAlertsForAdmin, getMessageStats, getSystemHealth } from '../../../services/api.js';
+import AuditLogs from './pages/AuditLogs';
+import { getAllAlertsForAdmin } from '../../../services/api.js';
 
 function App() {
   const [alerts, setAlerts] = useState([]);
@@ -145,9 +147,14 @@ function App() {
                   path="/messages"
                   element={<Messages />}
                 />
+                <Route
+                  path="/admin-actions"
+                  element={<AdminActions />}
+                />
                 <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/audit-logs" element={<AuditLogs />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             )}

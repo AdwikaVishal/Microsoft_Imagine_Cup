@@ -17,7 +17,9 @@ import StatusBadge from '../components/StatusBadge';
 
 import { 
   getAllAlertsForAdmin, 
-  markMessageAsRead 
+  markMessageAsRead,
+  resolveSOS,
+  resolveIncident
 } from '../../../../services/api.js';
 
 function Messages() {
@@ -104,6 +106,7 @@ function Messages() {
   // ================= MARK READ =================
   const handleMarkAsRead = async (messageId) => {
     try {
+      console.log(`📖 Marking message ${messageId} as read...`);
       await markMessageAsRead(messageId);
 
       setMessages(prev =>
@@ -118,6 +121,60 @@ function Messages() {
       }));
     } catch (err) {
       console.error('Error marking message as read:', err);
+      // Handle 404 gracefully - message might not exist in messages table
+      if (err.response?.status === 404) {
+        console.warn('Message not found in database - it may be from fallback data');
+        // Optimistically mark as read locally
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === messageId ? { ...msg, is_read: true } : msg
+          )
+        );
+        setStats(prev => ({
+          ...prev,
+          unread: Math.max(prev.unread - 1, 0)
+        }));
+      }
+    }
+  };
+
+  // ================= RESOLVE ISSUES =================
+  const handleResolve = async (message) => {
+    try {
+      console.log(`🔧 Resolving ${message.message_type} ${message.id}...`);
+      
+      if (message.message_type === 'SOS') {
+        await resolveSOS(message.id);
+      } else if (message.message_type === 'INCIDENT') {
+        await resolveIncident(message.id);
+      }
+
+      // Update local state
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === message.id 
+            ? { ...msg, is_read: true, status: message.message_type === 'SOS' ? 'SAFE' : 'RESOLVED' }
+            : msg
+        )
+      );
+
+      setStats(prev => ({
+        ...prev,
+        unread: Math.max(prev.unread - 1, 0)
+      }));
+    } catch (err) {
+      console.error(`Error resolving ${message.message_type}:`, err);
+      // Handle gracefully - might be from fallback data
+      if (err.response?.status === 404) {
+        console.warn(`${message.message_type} not found in database - optimistically updating UI`);
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === message.id 
+              ? { ...msg, is_read: true, status: message.message_type === 'SOS' ? 'SAFE' : 'RESOLVED' }
+              : msg
+          )
+        );
+      }
     }
   };
 
@@ -183,6 +240,85 @@ function Messages() {
         </button>
       </div>
 
+      {/* STATS */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <MessageCircle className="h-8 w-8 text-blue-500" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Total Messages</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <Clock className="h-8 w-8 text-orange-500" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Unread</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.unread}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <AlertTriangle className="h-8 w-8 text-red-500" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">SOS Alerts</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.sos_count}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <Flame className="h-8 w-8 text-orange-500" />
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Incidents</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.incident_count}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FILTERS */}
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-64">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Search messages..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
+          
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Types</option>
+            <option value="SOS">SOS Only</option>
+            <option value="INCIDENT">Incidents Only</option>
+            <option value="GENERAL">General</option>
+          </select>
+          
+          <select
+            value={readFilter}
+            onChange={(e) => setReadFilter(e.target.value)}
+            className="px-3 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Status</option>
+            <option value="unread">Unread Only</option>
+            <option value="read">Read Only</option>
+          </select>
+        </div>
+      </div>
+
       {/* LIST */}
       <div className="space-y-4">
         {isLoading ? (
@@ -208,6 +344,15 @@ function Messages() {
                   <div className="flex items-center space-x-2">
                     {getMessageIcon(message.message_type)}
                     <h3 className="font-semibold">{message.title || 'Alert'}</h3>
+                    {message.status && (
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        message.status === 'SAFE' || message.status === 'RESOLVED' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {message.status}
+                      </span>
+                    )}
                   </div>
 
                   <p className="mt-2 text-gray-700">
@@ -225,14 +370,29 @@ function Messages() {
                   </p>
                 </div>
 
-                {!message.is_read && (
-                  <button
-                    onClick={() => handleMarkAsRead(message.id)}
-                    className="px-3 py-1 bg-green-600 text-white rounded"
-                  >
-                    Mark read
-                  </button>
-                )}
+                <div className="flex space-x-2">
+                  {!message.is_read && (
+                    <button
+                      onClick={() => handleMarkAsRead(message.id)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      title={message._isFallbackData ? 'Cannot mark as read - data from fallback endpoint' : ''}
+                      disabled={message._isFallbackData}
+                      style={message._isFallbackData ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                    >
+                      {message._isFallbackData ? 'Read-only' : 'Mark read'}
+                    </button>
+                  )}
+                  
+                  {(message.status !== 'SAFE' && message.status !== 'RESOLVED') && (
+                    <button
+                      onClick={() => handleResolve(message)}
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                      title={`Resolve this ${message.message_type.toLowerCase()}`}
+                    >
+                      Resolve
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))

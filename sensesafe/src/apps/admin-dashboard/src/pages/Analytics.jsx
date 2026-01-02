@@ -1,45 +1,88 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, AlertTriangle, Activity, Clock } from 'lucide-react';
+import { getAllAlertsForAdmin, getAllUsers, getAuditLogs, getSystemHealth } from '../../../../services/api';
 
 function Analytics() {
-    // Mock analytics data
+    const [counts, setCounts] = useState({
+        users: 0,
+        alerts: 0,
+        health: 'Healthy',
+        avgResponse: '1.2s'
+    });
+    const [recentActivity, setRecentActivity] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            try {
+                const [alertsData, usersData, logsData, healthData] = await Promise.all([
+                    getAllAlertsForAdmin(),
+                    getAllUsers({ page_size: 1 }), // Just need count
+                    getAuditLogs({ page_size: 5 }),
+                    getSystemHealth()
+                ]);
+
+                // Calculate active alerts (Active SOS + Active/Pending Incidents)
+                // Note: getAllAlertsForAdmin returns { messages, stats }
+                const activeAlerts = (alertsData.stats?.sos_count || 0) + (alertsData.stats?.incident_count || 0);
+
+                setCounts({
+                    users: usersData.total || 0,
+                    alerts: activeAlerts,
+                    health: healthData.status === 'healthy' ? '99.9%' : 'Degraded',
+                    avgResponse: '2.3s' // Placeholder as we don't track response time in DB yet
+                });
+
+                // Map audit logs to activity
+                const mappedActivity = (logsData.audit_logs || []).map(log => ({
+                    id: log.id,
+                    action: log.action.replace('_', ' '),
+                    user: log.admin_email ? log.admin_email.split('@')[0] : 'System',
+                    time: new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }));
+                setRecentActivity(mappedActivity);
+
+            } catch (error) {
+                console.error("Failed to load analytics", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAnalytics();
+        const interval = setInterval(fetchAnalytics, 30000); // Refresh every 30s
+        return () => clearInterval(interval);
+    }, []);
+
     const stats = [
         {
             title: 'Total Users',
-            value: '1,234',
-            change: '+12%',
+            value: isLoading ? '...' : counts.users,
+            change: '+1%', // Placeholder
             changeType: 'positive',
             icon: Users,
         },
         {
             title: 'Active Alerts',
-            value: '23',
-            change: '-5%',
-            changeType: 'negative',
+            value: isLoading ? '...' : counts.alerts,
+            change: 'Live',
+            changeType: 'negative', // High alerts is usually bad/attention-needed, but technically "activity"
             icon: AlertTriangle,
         },
         {
             title: 'System Uptime',
-            value: '99.9%',
-            change: '+0.1%',
+            value: isLoading ? '...' : counts.health,
+            change: 'Normal',
             changeType: 'positive',
             icon: Activity,
         },
         {
             title: 'Avg Response Time',
-            value: '2.3s',
-            change: '-0.2s',
+            value: counts.avgResponse,
+            change: '-0.1s',
             changeType: 'positive',
             icon: Clock,
         },
-    ];
-
-    const recentActivity = [
-        { id: 1, action: 'New user registered', user: 'Alice Cooper', time: '2 minutes ago' },
-        { id: 2, action: 'Alert resolved', user: 'System', time: '5 minutes ago' },
-        { id: 3, action: 'System backup completed', user: 'System', time: '1 hour ago' },
-        { id: 4, action: 'User updated profile', user: 'David Miller', time: '2 hours ago' },
-        { id: 5, action: 'New alert triggered', user: 'System', time: '3 hours ago' },
     ];
 
     return (
@@ -63,12 +106,11 @@ function Analytics() {
                                 <Icon className="h-8 w-8 text-gray-400" />
                             </div>
                             <div className="mt-4">
-                                <span className={`text-sm font-medium ${
-                                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                                }`}>
+                                <span className={`text-sm font-medium ${stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                                    }`}>
                                     {stat.change}
                                 </span>
-                                <span className="text-sm text-gray-600 ml-1">from last month</span>
+                                <span className="text-sm text-gray-600 ml-1">status</span>
                             </div>
                         </div>
                     );
@@ -88,21 +130,27 @@ function Analytics() {
                 <div className="bg-white rounded-lg shadow p-6">
                     <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
                     <div className="space-y-4">
-                        {recentActivity.map((activity) => (
-                            <div key={activity.id} className="flex items-start space-x-3">
-                                <div className="flex-shrink-0">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                        {isLoading ? (
+                            <p className="text-center text-gray-500">Loading activity...</p>
+                        ) : recentActivity.length === 0 ? (
+                            <p className="text-center text-gray-500">No recent activity.</p>
+                        ) : (
+                            recentActivity.map((activity) => (
+                                <div key={activity.id} className="flex items-start space-x-3">
+                                    <div className="flex-shrink-0">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900">
+                                            {activity.action}
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                            by {activity.user} • {activity.time}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900">
-                                        {activity.action}
-                                    </p>
-                                    <p className="text-sm text-gray-500">
-                                        by {activity.user} • {activity.time}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                 </div>
             </div>

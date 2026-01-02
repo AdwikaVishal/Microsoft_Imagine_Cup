@@ -1,3 +1,4 @@
+
 /**
  * SenseSafe API Service
  * Connected to FastAPI backend via Vite proxy
@@ -379,10 +380,8 @@ export const getAllAlertsForAdmin = async () => {
       apiClient.get('/api/incidents/user')
     ]);
 
-    // Extract data safely
-    const messages = messagesRes.status === 'fulfilled' && messagesRes.value.data?.messages
-      ? messagesRes.value.data.messages
-      : [];
+    // Extract const messages = messagesRes.status === 'fulfilled' && messagesRes.value.data?.messages
+       messagesRes.value.data.messages
 
     const sosAlerts = sosRes.status === 'fulfilled' && sosRes.value.data?.sos_alerts
       ? sosRes.value.data.sos_alerts
@@ -405,7 +404,7 @@ export const getAllAlertsForAdmin = async () => {
     // 2. Map SOS to common format.
     // 3. Map Incidents to common format.
     // 4. Combine all. 
-    // 5. (Optional) Deduplicate? 
+    // 5. (Optional) Deduplication? 
     //    Risk of duplicates is real if creating an Incident also creates a Message.
     //    Current Backend analysis: Incident creation -> No Message. SOS creation -> No Message.
     //    Message creation -> Creates Message (and maybe records elsewhere but those endpoints aren't used by frontend).

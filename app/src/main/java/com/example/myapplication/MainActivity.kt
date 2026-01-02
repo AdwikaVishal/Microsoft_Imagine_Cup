@@ -16,12 +16,15 @@ import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.viewmodel.AlertViewModel
 import com.example.myapplication.viewmodel.IncidentViewModel
 import com.example.myapplication.viewmodel.SOSViewModel
+import com.example.myapplication.viewmodel.ScanViewModel
+import com.example.myapplication.viewmodel.ScanViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
     private val sosViewModel: SOSViewModel by viewModels { ViewModelFactory(application) }
     private val alertViewModel: AlertViewModel by viewModels { ViewModelFactory(application) }
     private val incidentViewModel: IncidentViewModel by viewModels { ViewModelFactory(application) }
+    private val scanViewModel: ScanViewModel by viewModels { ScanViewModelFactory(application) }
     
     // Accessibility manager for vibration and TTS
     private lateinit var accessibilityManager: AccessibilityManager
@@ -58,6 +61,7 @@ class MainActivity : ComponentActivity() {
                         sosViewModel = sosViewModel,
                         alertViewModel = alertViewModel,
                         incidentViewModel = incidentViewModel,
+                        scanViewModel = scanViewModel,
                         accessibilityManager = accessibilityManager
                     )
                 }

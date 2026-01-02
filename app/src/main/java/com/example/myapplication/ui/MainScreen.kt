@@ -343,7 +343,10 @@ fun MainScreen(
             }
             is SOSState.Success -> {
                 AlertDialog(
-                    onDismissRequest = { showConfirmationDialog = false },
+                    onDismissRequest = { 
+                        showConfirmationDialog = false
+                        sosViewModel.resetState() // Reset state to allow new SOS requests
+                    },
                     icon = {
                         Icon(
                             Icons.Default.CheckCircle,
@@ -367,6 +370,7 @@ fun MainScreen(
                     confirmButton = {
                         TextButton(onClick = { 
                             showConfirmationDialog = false
+                            sosViewModel.resetState() // Reset state to allow new SOS requests
                             accessibilityManager?.speak("SOS confirmation closed")
                         }) {
                             Text("OK")
@@ -376,7 +380,10 @@ fun MainScreen(
             }
             is SOSState.Error -> {
                 AlertDialog(
-                    onDismissRequest = { showConfirmationDialog = false },
+                    onDismissRequest = { 
+                        showConfirmationDialog = false
+                        sosViewModel.resetState() // Reset state to allow new SOS requests
+                    },
                     icon = {
                         Icon(
                             Icons.Default.Error,
@@ -388,7 +395,10 @@ fun MainScreen(
                     title = { Text("SOS Failed") },
                     text = { Text((sosState as SOSState.Error).message) },
                     confirmButton = {
-                        TextButton(onClick = { showConfirmationDialog = false }) {
+                        TextButton(onClick = { 
+                            showConfirmationDialog = false
+                            sosViewModel.resetState() // Reset state to allow new SOS requests
+                        }) {
                             Text("OK")
                         }
                     }
@@ -545,18 +555,18 @@ fun FeatureCard(
 @Composable
 private fun getStatusIcon(status: SOSStatus): ImageVector {
     return when (status) {
-        SOSStatus.IM_TRAPPED -> Icons.Default.Block
-        SOSStatus.IM_INJURED -> Icons.Default.LocalHospital
-        SOSStatus.I_NEED_HELP -> Icons.AutoMirrored.Filled.Help
-        SOSStatus.IM_SAFE -> Icons.Default.CheckCircle
+        SOSStatus.TRAPPED -> Icons.Default.Block
+        SOSStatus.INJURED -> Icons.Default.LocalHospital
+        SOSStatus.NEED_HELP -> Icons.AutoMirrored.Filled.Help
+        SOSStatus.SAFE -> Icons.Default.CheckCircle
     }
 }
 @Composable
 private fun getStatusColor(status: SOSStatus): androidx.compose.ui.graphics.Color {
     return when (status) {
-        SOSStatus.IM_TRAPPED -> MaterialTheme.colorScheme.error
-        SOSStatus.IM_INJURED -> MaterialTheme.colorScheme.error
-        SOSStatus.I_NEED_HELP -> MaterialTheme.colorScheme.secondary
-        SOSStatus.IM_SAFE -> MaterialTheme.colorScheme.primary
+        SOSStatus.TRAPPED -> MaterialTheme.colorScheme.error
+        SOSStatus.INJURED -> MaterialTheme.colorScheme.error
+        SOSStatus.NEED_HELP -> MaterialTheme.colorScheme.secondary
+        SOSStatus.SAFE -> MaterialTheme.colorScheme.primary
     }
 }

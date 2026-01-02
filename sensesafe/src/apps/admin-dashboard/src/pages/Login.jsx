@@ -38,6 +38,13 @@ function Login({ onLogin }) {
                     <p className="mt-2 text-center text-sm text-gray-600">
                         Admin and Responder Access Only
                     </p>
+                    <div className="mt-4 p-3 bg-blue-50 rounded-md">
+                        <p className="text-xs text-blue-800 text-center">
+                            <strong>Development Login:</strong><br/>
+                            Email: admin@sensesafe.com<br/>
+                            Password: admin123
+                        </p>
+                    </div>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <input type="hidden" name="remember" defaultValue="true" />

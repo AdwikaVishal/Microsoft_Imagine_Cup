@@ -1,16 +1,19 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, AlertTriangle, MessageCircle, Settings, Users, BarChart3 } from 'lucide-react';
+import { Home, AlertTriangle, MessageCircle, Settings, Users, BarChart3, ClipboardList, Shield, Siren } from 'lucide-react';
 
-function Sidebar({ unreadCount = 0 }) {
+function Sidebar({ unreadCount = 0, activeSOS = 0 }) {
     const location = useLocation();
 
     const menuItems = [
         { path: '/', icon: Home, label: 'Dashboard' },
         { path: '/alerts', icon: AlertTriangle, label: 'Alerts' },
+        { path: '/sos-alerts', icon: Siren, label: 'SOS Alerts', badge: activeSOS, badgeColor: 'bg-red-500' },
         { path: '/messages', icon: MessageCircle, label: 'Messages', badge: unreadCount },
+        { path: '/admin-actions', icon: Shield, label: 'Admin Actions' },
         { path: '/users', icon: Users, label: 'Users' },
         { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+        { path: '/audit-logs', icon: ClipboardList, label: 'Audit Logs' },
         { path: '/settings', icon: Settings, label: 'Settings' },
     ];
 
@@ -38,7 +41,7 @@ function Sidebar({ unreadCount = 0 }) {
                                     <Icon className="h-5 w-5 mr-3" />
                                     {item.label}
                                     {item.badge > 0 && (
-                                        <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                        <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${item.badgeColor || 'bg-red-500'} text-white`}>
                                             {item.badge}
                                         </span>
                                     )}
