@@ -18,7 +18,7 @@ jobs:
       - name: Show files (debug)
         run: ls -R
 
-      # Upload ONLY the contents of backend
+      # Upload ONLY the backend folder contents
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
@@ -37,6 +37,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
+
+      - name: Show downloaded files
+        run: ls -R
+
+      # make startup.sh executable (important!)
+      - name: Make startup executable
+        run: chmod +x startup.sh || true
 
       - name: Login to Azure
         uses: azure/login@v2
