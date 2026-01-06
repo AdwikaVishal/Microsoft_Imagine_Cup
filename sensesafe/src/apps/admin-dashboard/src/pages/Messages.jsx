@@ -20,7 +20,7 @@ import {
   markMessageAsRead,
   resolveSOS,
   resolveIncident
-} from '../../../../services/api.js';
+} from '../services/api.js';
 
 function Messages() {
   const [messages, setMessages] = useState([]);
