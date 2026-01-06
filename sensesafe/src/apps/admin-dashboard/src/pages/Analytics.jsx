@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, AlertTriangle, Activity, Clock } from 'lucide-react';
-import { getAllAlertsForAdmin, getAllUsers, getAuditLogs, getSystemHealth } from '../../../../services/api';
+import { getAllAlertsForAdmin, getAllUsers, getAuditLogs, getSystemHealth } from '../services/api.js';
 
 function Analytics() {
     const [counts, setCounts] = useState({
