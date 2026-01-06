@@ -7,7 +7,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'https://sensesafe-ghhuawctbmcxgnbb.centralindia-01.azurewebsites.net',
+  baseURL: 'https://sensesafe-c9c8bpend7cceeh7.eastasia-01.azurewebsites.net',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
