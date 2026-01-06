@@ -15,21 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python version
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
       - name: Show files (debug)
         run: ls -R
 
+      # upload ONLY backend folder as artifact
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: |
-            backend
-            !backend/antenv/
+          path: backend
 
   deploy:
     runs-on: ubuntu-latest
@@ -56,5 +50,4 @@ jobs:
         with:
           app-name: 'sensesafe'
           slot-name: 'Production'
-          package: .
-
+          package: backend
